@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"os"
+	"database/sql"
 
+	_"github.com/lib/pq"
 	"github.com/npayetteraynauld/Blog-Aggregator/internal/config"
+	"github.com/npayetteraynauld/Blog-Aggregator/internal/database"
 )
 
 func main() {
@@ -13,9 +16,18 @@ func main() {
 	if err != nil {
 		fmt.Println(err)	
 	}
+
+	//open connection to database
+	db, err := sql.Open("postgres", cfg.DBURL)
+	if err != nil {
+		fmt.Errorf("Error opening database: %v", err)
+	}
 	
+	dbQueries := database.New(db)
+
 	//initialize state struct
 	s := state{
+		db: dbQueries,
 		cfg: &cfg,
 	}
 
@@ -24,8 +36,11 @@ func main() {
 		commands: make(map[string]func(*state, command) error),
 	}
 
-	//register login handler in commands
+	//register handlers in commands
 	cmds.register("login", handlerLogin)
+	cmds.register("register", handlerRegister)
+	cmds.register("reset", handlerReset)
+	cmds.register("users", handlerUsers)
 
 	//parsing arguments
 	arguments := os.Args
