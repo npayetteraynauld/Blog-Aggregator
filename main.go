@@ -41,6 +41,9 @@ func main() {
 	cmds.register("register", handlerRegister)
 	cmds.register("reset", handlerReset)
 	cmds.register("users", handlerUsers)
+	cmds.register("agg", handlerAgg)
+	cmds.register("addfeed", handlerAddFeed)
+	cmds.register("feeds", handlerFeeds)
 
 	//parsing arguments
 	arguments := os.Args
@@ -67,5 +70,4 @@ func main() {
 
 	
 	cfg, err = config.Read()
-	fmt.Println(cfg)
 }
