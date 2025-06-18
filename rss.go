@@ -8,6 +8,10 @@ import (
 	"encoding/xml"
 	"context"
 	"html"
+	"fmt"
+	"database/sql"
+
+	"github.com/npayetteraynauld/Blog-Aggregator/internal/database"
 )
 
 type RSSFeed struct {
@@ -69,4 +73,39 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	}
 
 	return &feed, nil
+}
+
+func scrapeFeeds(s *state) error {
+	//Get next feed to fetch
+	feed, err := s.db.GetNextFeedToFetch(context.Background())
+	if err != nil {
+		return fmt.Errorf("Error getting next feed to fetch: %v", err)
+	}
+
+	//Mark feed fetched
+	err = s.db.MarkFeedFetched(context.Background(), database.MarkFeedFetchedParams{
+		LastFetchedAt: sql.NullTime{
+			Time: time.Now(),
+			Valid: true,
+		},
+		ID: feed.ID,
+	})
+	if err != nil {
+		return fmt.Errorf("Error marking feed fetched: %v", err)
+	}
+
+	//Fetch feed
+	rssfeed, err := fetchFeed(context.Background(), feed.Url)
+	if err != nil {
+		return fmt.Errorf("Error fetching feed: %v", err)
+	}
+	
+	//Printing feeds
+	fmt.Printf("%v Items:\n", rssfeed.Channel.Title)
+
+	for _, item := range rssfeed.Channel.Item {
+		fmt.Printf("  - %v\n", item.Title)
+	}
+	
+	return nil
 }
