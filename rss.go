@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"database/sql"
 
+	"github.com/google/uuid"
 	"github.com/npayetteraynauld/Blog-Aggregator/internal/database"
 )
 
@@ -67,9 +68,9 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	//unescaping strings
 	feed.Channel.Title = html.UnescapeString(feed.Channel.Title)
 	feed.Channel.Description = html.UnescapeString(feed.Channel.Description)
-	for _, item := range feed.Channel.Item {
-		item.Title = html.UnescapeString(item.Title)
-		item.Description = html.UnescapeString(item.Description)
+	for i := range feed.Channel.Item {
+		feed.Channel.Item[i].Title = html.UnescapeString(feed.Channel.Item[i].Title)
+		feed.Channel.Item[i].Description = html.UnescapeString(feed.Channel.Item[i].Description)
 	}
 
 	return &feed, nil
@@ -99,13 +100,28 @@ func scrapeFeeds(s *state) error {
 	if err != nil {
 		return fmt.Errorf("Error fetching feed: %v", err)
 	}
-	
-	//Printing feeds
-	fmt.Printf("%v Items:\n", rssfeed.Channel.Title)
 
+	//saving posts from feeds
 	for _, item := range rssfeed.Channel.Item {
-		fmt.Printf("  - %v\n", item.Title)
+		//parsing PubDate into time.Time
+		t, err := time.Parse(time.RFC1123, item.PubDate)
+		
+		_, err = s.db.CreatePost(context.Background(), database.CreatePostParams{
+			ID: uuid.New(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Title: item.Title,
+			Url: item.Link,
+			Description: sql.NullString{
+				String: item.Description,
+				Valid: true,
+			},
+			PublishedAt: t,
+			FeedID: feed.ID,
+		})
+		if err != nil && err.Error() != `pq: duplicate key value violates unique constraint "posts_url_key"`{
+			return fmt.Errorf("Error creating post: %v", err)
+		}
 	}
-	
 	return nil
 }

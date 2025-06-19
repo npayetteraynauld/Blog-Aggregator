@@ -6,7 +6,10 @@ import (
 	"os"
 	"log"
 	"context"
-
+	"strconv"
+	"strings"
+	
+	"golang.org/x/net/html"
 	"github.com/google/uuid"
 	"github.com/npayetteraynauld/Blog-Aggregator/internal/config"
 	"github.com/npayetteraynauld/Blog-Aggregator/internal/database"
@@ -292,6 +295,72 @@ func handlerUnfollow(s *state, cmd command, user database.User) error {
 	
 	fmt.Printf("Unfollowing %v\n", feed.Name)
 	return nil
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	//check for limit arg
+	var limit int32
+	if len(cmd.args) == 0 {
+		limit = 2
+	} else if len(cmd.args) > 0 {
+		v, err := strconv.Atoi(cmd.args[0])
+		if err != nil {
+			//couldn't parse
+			limit = 2
+		} else {
+			limit = int32(v)
+		}
+	}
+
+	//Print posts for user with provided limit arg
+	posts, err := s.db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit: limit,
+	})
+	if err != nil {
+		return fmt.Errorf("Error getting posts for user: %v", err)
+	}
+
+	fmt.Printf("Most recent %v posts:\n", limit)
+	for _, post := range posts {
+		fmt.Println()
+		fmt.Printf("  - Title: %v\n", post.Title)
+		fmt.Printf("  - Published at: %v\n", post.PublishedAt)
+		fmt.Printf("  - Link: %v\n", post.Url)
+		fmt.Printf("  - Description: %v\n", stripHTML(post.Description.String))
+	}
+
+	return nil
+}
+
+func stripHTML(input string) string {
+	doc, err := html.Parse(strings.NewReader(input))
+	if err != nil {
+		return ""
+	}
+	var text string
+	recursivestripHTML(doc, &text)
+	return text
+}
+
+func recursivestripHTML(node *html.Node, text *string) {
+	if node == nil {
+		return
+	}
+
+	if node.Type == html.TextNode {
+		*text = *text + node.Data 
+	}
+
+	if node.FirstChild != nil {
+		recursivestripHTML(node.FirstChild, text)
+	}
+
+	if node.NextSibling != nil {
+		recursivestripHTML(node.NextSibling, text)
+	}
+
+	return
 }
 
 func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
