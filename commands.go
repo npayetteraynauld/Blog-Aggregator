@@ -100,7 +100,6 @@ func handlerRegister(s *state, cmd command) error {
 	s.cfg.SetUser(cmd.args[0])
 
 	fmt.Println("User successfully created")
-	log.Println(user)
 	return nil
 }
 
