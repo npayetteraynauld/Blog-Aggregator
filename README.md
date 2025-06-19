@@ -19,6 +19,7 @@ To use this program, run:
 
 ```bash
 go install ./...
+```
 
 While in the repo directory
 
